@@ -88,6 +88,17 @@ class Player(discord.VoiceProtocol):
             node = NodePool.get_node()
         self.node: Node = node
         self.node._players.append(self)
+        self.volume = 100
+        self.paused = False
+        self.current = None
+        self._equalizer = Equalizer.flat()
+        self.timescale = {
+            "speed": 1,
+            "pitch": 1,
+            "rate": 1,
+        }
+
+        self.channel_id = None
 
         self._voice_state: Dict[str, Any] = {}
 
@@ -315,6 +326,60 @@ class Player(discord.VoiceProtocol):
         logger.debug(f"Set volume:: {self.volume} ({self.channel.id})")
 
     async def seek(self, position: int = 0) -> None:
+        """Seek to the given position in the song.
+
+        Parameters
+        ------------
+        position: int
+            The position as an int in milliseconds to seek to. Could be None to seek to beginning.
+        """
+
+        await self.node._send(op='seek', guildId=str(self.guild_id), position=position)
+
+    async def set_timescale(self, *args, **kwargs) -> None:
+        for i,j in kwargs.items():
+            self.timescale[i] = j
+
+        await self.node._send(
+            op='filters',
+            guildId=str(self.guild_id),
+            timescale=self.timescale,
+            )
+
+    async def set_speed(self, speed: int) -> None:
+        """Set the playback speed to the given value.
+
+        Parameters
+        ------------
+        speed: int
+            Speed to set to.
+        """
+
+        await self.set_timescale(speed=speed)
+
+    async def set_pitch(self, pitch: int) -> None:
+        """Set the playback pitch to the given value.
+
+        Parameters
+        ------------
+        pitch: int
+            Pitch to set to.
+        """
+
+        await self.set_timescale(pitch=pitch)
+
+    async def set_rate(self, rate: int) -> None:
+        """Set the playback rate to the given value.
+
+        Parameters
+        ------------
+        rate: int
+            Rate to set to.
+        """
+
+        await self.set_timescale(rate=rate)
+
+    async def change_node(self, identifier: str = None) -> None:
         """|coro|
 
         Seek to the given position in the song.
